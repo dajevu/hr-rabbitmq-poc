@@ -28,28 +28,28 @@ public class RabbitProducerSeeder implements Runnable {
 
             Channel ch = conn.createChannel();
 
+            // Notifies the channel that the Rabbit exchange will be sending acks.
             ch.confirmSelect();
 
+            // Listens for acks issued by Rabbit upon successful processing of the message.
             ch.addConfirmListener(new ConfirmListener() {
-                @Override
                 public void handleAck(long l, boolean b) throws IOException {
                     System.out.println("Ack received for:: " + l);
                 }
 
-                @Override
                 public void handleNack(long l, boolean b) throws IOException {
                     System.out.println("nAck received for:: " + l);
                 }
             });
 
             ch.addReturnListener(new ReturnListener() {
-                @Override
                 public void handleReturn(int i, String s, String s2, String s3, AMQP.BasicProperties basicProperties, byte[] bytes) throws IOException {
                     System.out.println("Messages returned for exchange:: " + s2);
                 }
             });
 
-            // Publish
+            // Publish some example messasges to the exchange. Notice we use the replyTo
+            // header to provide a correlation id (replyTo method).
             for (long i = 0; i < Constants.MSG_COUNT; ++i) {
                 ch.basicPublish(Constants.EXCHANGE, Constants.REQUEST_QUEUE, true,  false,
                         new AMQP.BasicProperties.Builder()
@@ -59,10 +59,11 @@ public class RabbitProducerSeeder implements Runnable {
                         "nop".getBytes());
             }
 
+            // Method means that the channel will wait until all messages have been consumed
+            // by the exchange
             ch.waitForConfirms();
 
             // Cleanup
-            //ch.queueDelete(QUEUE_NAME);
             ch.close();
             conn.close();
 

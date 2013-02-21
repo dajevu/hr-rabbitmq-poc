@@ -13,32 +13,37 @@ public class RabbitConsumer {
 
     public static void main(String[] argv) throws Exception {
 
+        // This method will create the exchanges and queues if they don't already exist
         setupExchangeAndQueues();
 
         connectionFactory = new ConnectionFactory();
 
         connectionFactory.setHost("localhost");
 
+        // This will connect to the Rabbit instance running on localhost
         Connection connection = connectionFactory.newConnection();
 
         Channel channel = connection.createChannel();
 
+        // This method enables the publisher to send acknowledgements that the message
+        // was received and processed into the binded queue.
         channel.confirmSelect();
 
+        // This listener is listening for confirmation from the Exchange
+        // that the message was received and sent to the appropriate queue.
+        // See, this consumer is receiving a rabbit message, but then sending
+        // a response. This is used for the response.
         channel.addConfirmListener(new ConfirmListener() {
-            @Override
             public void handleAck(long l, boolean b) throws IOException {
                 System.out.println("Message :: " + l + " sent successfully");
             }
 
-            @Override
             public void handleNack(long l, boolean b) throws IOException {
                 System.out.println("Message :: " + l + " NOT SENT successfully");
             }
         });
 
         channel.addReturnListener(new ReturnListener() {
-            @Override
             public void handleReturn(int i, String s, String s2, String s3, AMQP.BasicProperties basicProperties, byte[] bytes) throws IOException {
                 System.out.println("Messages returned for exchange (NOT SENT):: " + s2);
             }
@@ -48,12 +53,20 @@ public class RabbitConsumer {
 
         QueueingConsumer consumer = new QueueingConsumer(channel);
 
+        // Starts the consumer
         channel.basicConsume(Constants.REQUEST_QUEUE, true, consumer);
 
+        // This while loop will ensure that messages are consumed as they are received, until
+        // the Main is stopped with CTRL-C.
         while (true) {
             try {
+                // Grabs the next message arriving in the queue
                 QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+
+                // Grabs the message body
                 String message = new String(delivery.getBody());
+
+                // Grabs the routing key used when the message was published.
                 String routingKey = delivery.getEnvelope().getRoutingKey();
 
                 System.out.println(" [x] Received '" + routingKey + "':'" + message + "'");
@@ -75,6 +88,7 @@ public class RabbitConsumer {
         }
     }
 
+    /* Method will setup the exchanges and queues for the consumer */
     public static void setupExchangeAndQueues() throws Exception {
         connectionFactory = new ConnectionFactory();
 

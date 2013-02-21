@@ -50,7 +50,6 @@ public class RabbitConsumerSpring implements MessageListener {
 
     }
 
-    @Override
     public void onMessage(Message message) {
 
         log.debug("Received message " + new String(message.getBody()));

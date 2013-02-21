@@ -11,12 +11,15 @@
         http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.1.xsd
         http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.1.xsd">
 
+    <!-- specifies that we're using Springs annotation support to wire things together -->
     <mvc:annotation-driven />
 
     <ctx:component-scan base-package="com.hireright.rabbit.consumer" />
 
+    <!-- reads in the properties for the rabbit settings -->
     <ctx:property-placeholder location="classpath:application.properties" />
 
+    <!-- creates the connection to localhost running Rabbit -->
     <b:bean id="connectionFactory"
             class="org.springframework.amqp.rabbit.connection.CachingConnectionFactory">
         <!--  TODO: put these in a properties file -->
@@ -25,6 +28,12 @@
         <b:property name="password" value="guest"/>
     </b:bean>
 
+
+    <!-- This invokes the AMQP listener to listen for inbound messages arriving
+         on the queues specified in the queueNames array. Notice that we are sending
+         it the class that will be invoked (the onMessage method) when messages are
+         recevied, which in this case is the RabbitConsumerSpring (open that class
+         to see that we're assigning that class to the component name of rabbitSpring -->
     <b:bean class="org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer">
         <b:property name="connectionFactory" ref="connectionFactory"/>
         <b:property name="queueNames">
@@ -35,6 +44,9 @@
         <b:property name="messageListener" ref="rabbitSpring"/>
     </b:bean>
 
+    <!-- The following two templates are used to publish messages to the queue, since
+         we are using two different queues (one to represent the original message
+         publishing to the request queue, and then another for the response message -->
     <rabbit:template id="amqpRequestTemplate"
                      connection-factory="connectionFactory"
                      exchange="${rabbitmq.exchange}"

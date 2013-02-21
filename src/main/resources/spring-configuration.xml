@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<b:beans
+        xmlns:b="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+        xmlns:ctx="http://www.springframework.org/schema/context"
+        xmlns:mvc="http://www.springframework.org/schema/mvc"
+        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+        http://www.springframework.org/schema/rabbit
+        http://www.springframework.org/schema/rabbit/spring-rabbit-1.0.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.1.xsd
+        http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.1.xsd">
+
+    <mvc:annotation-driven />
+
+    <ctx:component-scan base-package="com.hireright.rabbit.consumer" />
+
+    <ctx:property-placeholder location="classpath:application.properties" />
+
+    <b:bean id="connectionFactory"
+            class="org.springframework.amqp.rabbit.connection.CachingConnectionFactory">
+        <!--  TODO: put these in a properties file -->
+        <b:constructor-arg value="${rabbitmq.host}"/>
+        <b:property name="username" value="guest"/>
+        <b:property name="password" value="guest"/>
+    </b:bean>
+
+    <b:bean class="org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer">
+        <b:property name="connectionFactory" ref="connectionFactory"/>
+        <b:property name="queueNames">
+            <b:array>
+                <b:value>${rabbitmq.request.routing.key}</b:value>
+            </b:array>
+        </b:property>
+        <b:property name="messageListener" ref="rabbitSpring"/>
+    </b:bean>
+
+    <rabbit:template id="amqpRequestTemplate"
+                     connection-factory="connectionFactory"
+                     exchange="${rabbitmq.exchange}"
+                     queue="${rabbitmq.request.routing.key}"
+                     routing-key="${rabbitmq.request.routing.key}"
+                     message-converter="messageConverter"/>
+
+    <rabbit:template id="amqpResponseTemplate"
+                     connection-factory="connectionFactory"
+                     exchange="${rabbitmq.exchange}"
+                     queue="${rabbitmq.response.routing.key}"
+                     routing-key="${rabbitmq.response.routing.key}"
+                     message-converter="messageConverter"/>
+
+    <rabbit:admin connection-factory="connectionFactory"/>
+
+    <!-- The following two statements will create the queues, if not already present -->
+    <rabbit:queue name="${rabbitmq.request.routing.key}" />
+    <rabbit:queue name="${rabbitmq.response.routing.key}" />
+
+    <!-- This will create the new DHS exchange and then bind the routing-key to a given queue -->
+    <rabbit:direct-exchange name="${rabbitmq.exchange}">
+        <rabbit:bindings>
+            <rabbit:binding queue="${rabbitmq.request.routing.key}" key="${rabbitmq.request.routing.key}" />
+            <rabbit:binding queue="${rabbitmq.response.routing.key}" key="${rabbitmq.response.routing.key}"/>
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <b:bean id="messageConverter" class="org.springframework.amqp.support.converter.JsonMessageConverter"/>
+
+</b:beans>
